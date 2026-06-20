@@ -1,16 +1,28 @@
-export default async function GroupPage({
+import { createClient } from '@/lib/supabase/server';
+import { notFound } from 'next/navigation';
+import GroupPage from './group-page';
+
+export default async function GroupRoute({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('groups')
+    .select('id, slug')
+    .eq('slug', slug)
+    .single();
+
+  if (error || !data) {
+    notFound();
+  }
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center p-8">
-      <h1 className="text-2xl font-bold">Group: {slug}</h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-        Group page placeholder
-      </p>
+      <GroupPage group={data} />
     </main>
   );
 }
