@@ -17,6 +17,15 @@ export type Database = {
           slug?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'members_group_id_fkey';
+            columns: ['id'];
+            isOneToOne: false;
+            referencedRelation: 'members';
+            referencedColumns: ['group_id'];
+          },
+        ];
       };
       members: {
         Row: {
@@ -40,6 +49,22 @@ export type Database = {
           token?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'members_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'groups';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'availability_member_id_fkey';
+            columns: ['id'];
+            isOneToOne: false;
+            referencedRelation: 'availability';
+            referencedColumns: ['member_id'];
+          },
+        ];
       };
       availability: {
         Row: {
@@ -60,6 +85,15 @@ export type Database = {
           free_until?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'availability_member_id_fkey';
+            columns: ['member_id'];
+            isOneToOne: false;
+            referencedRelation: 'members';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
     Views: Record<string, never>;
