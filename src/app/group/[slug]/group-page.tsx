@@ -108,6 +108,36 @@ export default function GroupPage({
       }))
     : members
 
+  const fetchAvailability = useCallback(async () => {
+    const memberIds = members.map((m) => m.id)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('availability')
+      .select('id, member_id, free_until, created_at')
+      .in('member_id', memberIds)
+
+    if (data) {
+      const grouped: Record<
+        string,
+        Array<{ id: string; free_until: string; created_at: string }>
+      > = {}
+      for (const mid of memberIds) {
+        grouped[mid] = []
+      }
+      for (const a of data) {
+        if (grouped[a.member_id]) {
+          grouped[a.member_id].push({
+            id: a.id,
+            free_until: a.free_until,
+            created_at: a.created_at,
+          })
+        }
+      }
+      setRealtimeAvailability(grouped)
+    }
+    setNow(new Date())
+  }, [members])
+
   // Real-time subscription to availability changes
   useEffect(() => {
     if (!member) return
@@ -121,7 +151,6 @@ export default function GroupPage({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'availability' },
         async (payload) => {
-          // Check if the change is for a member in this group
           const changedMemberId =
             (payload.new && typeof payload.new === 'object' && 'member_id' in payload.new
               ? (payload.new as { member_id: string }).member_id
@@ -132,31 +161,7 @@ export default function GroupPage({
 
           if (changedMemberId && !memberIds.includes(changedMemberId)) return
 
-          // Refetch availability for all group members
-          const { data } = await supabase
-            .from('availability')
-            .select('id, member_id, free_until, created_at')
-            .in('member_id', memberIds)
-
-          if (data) {
-            const grouped: Record<
-              string,
-              Array<{ id: string; free_until: string; created_at: string }>
-            > = {}
-            for (const mid of memberIds) {
-              grouped[mid] = []
-            }
-            for (const a of data) {
-              if (grouped[a.member_id]) {
-                grouped[a.member_id].push({
-                  id: a.id,
-                  free_until: a.free_until,
-                  created_at: a.created_at,
-                })
-              }
-            }
-            setRealtimeAvailability(grouped)
-          }
+          await fetchAvailability()
         },
       )
       .subscribe()
@@ -164,7 +169,7 @@ export default function GroupPage({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [member, members])
+  }, [member, members, fetchAvailability])
 
   const [now, setNow] = useState(() => new Date())
 
@@ -214,12 +219,14 @@ export default function GroupPage({
     const handleSetAvailability = (freeUntil: Date) => {
       startTransition(async () => {
         await setAvailability(member.memberId, member.token, freeUntil.toISOString())
+        await fetchAvailability()
       })
     }
 
     const handleClearAvailability = () => {
       startTransition(async () => {
         await clearAvailability(member.memberId, member.token)
+        await fetchAvailability()
       })
     }
 
