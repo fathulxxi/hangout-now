@@ -69,6 +69,10 @@ export default function GroupPage({
   const [joinedMember, setJoinedMember] = useState<MemberData | null>(null)
   const member = joinedMember ?? storedMember
 
+  const allMembers = member && !members.some((m) => m.id === member.memberId)
+    ? [...members, { id: member.memberId, name: member.name, availability: [] }]
+    : members
+
   const handleJoin = async (prevState: unknown, formData: FormData) => {
     const result = await joinGroup(prevState, formData)
     if ('token' in result) {
@@ -102,14 +106,14 @@ export default function GroupPage({
 
   // Merge server-provided members with any real-time overrides
   const liveMembers = realtimeAvailability
-    ? members.map((m) => ({
+    ? allMembers.map((m) => ({
         ...m,
         availability: realtimeAvailability[m.id] ?? [],
       }))
-    : members
+    : allMembers
 
   const fetchAvailability = useCallback(async () => {
-    const memberIds = members.map((m) => m.id)
+    const memberIds = allMembers.map((m) => m.id)
     const supabase = createClient()
     const { data } = await supabase
       .from('availability')
@@ -136,13 +140,13 @@ export default function GroupPage({
       setRealtimeAvailability(grouped)
     }
     setNow(new Date())
-  }, [members])
+  }, [allMembers])
 
   // Real-time subscription to availability changes
   useEffect(() => {
     if (!member) return
 
-    const memberIds = members.map((m) => m.id)
+    const memberIds = allMembers.map((m) => m.id)
     const supabase = createClient()
 
     const channel = supabase
@@ -169,7 +173,7 @@ export default function GroupPage({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [member, members, fetchAvailability])
+  }, [member, allMembers, fetchAvailability])
 
   const [now, setNow] = useState(() => new Date())
 
